@@ -16,33 +16,22 @@ cask "moldsign" do
   end
 
   auto_updates false
+  depends_on :macos
 
-  # The DMG ships a GUI installer (`MoldSign Installer <version>.app`) whose real
+  # The DMG ships a GUI installer (`MoldSign Installer <version>.app`); its real
   # payload is the self-contained `STISC/MoldSign` tree (bundled JRE, Desktop app,
-  # background Server app, PKCS#11 libs). We install that payload directly, to the
-  # same location the vendor installer uses, instead of running the GUI installer
-  # (which also unmounts the volume and auto-launches apps). An `app` stanza can't
-  # express this because the target is a fixed directory, not a single .app.
-  artifact "MoldSign Installer #{version}.app/STISC", target: "/Applications/STISC"
+  # background Server app, PKCS#11 libs). Install that tree directly — to the same
+  # location the vendor installer uses — rather than running the GUI installer,
+  # which also unmounts the volume and auto-launches the apps.
+  suite "MoldSign Installer #{version}.app/STISC"
 
-  postflight do
-    moldsign = "/Applications/STISC/MoldSign"
-
+  postflight_steps do
     # The bundle is unsigned / ad-hoc signed. The vendor installer runs the same
-    # command; without it Gatekeeper blocks the JRE and native libraries.
-    system_command "/usr/bin/xattr", args: ["-rc", "/Applications/STISC"]
-
-    # Convenience aliases in /Applications so the apps show up in Spotlight/Launchpad.
-    ["MoldSign Desktop.app", "MoldSign Server.app"].each do |app_name|
-      link = "/Applications/#{app_name}"
-      File.delete(link) if File.symlink?(link) || File.exist?(link)
-      File.symlink "#{moldsign}/#{app_name}", link
-    end
+    # command; without it Gatekeeper blocks the bundled JRE and native libraries.
+    run "/usr/bin/xattr", args: ["-rc", "{{appdir}}/STISC"]
 
     # LaunchAgent that starts the background Server at login (installed by the vendor).
-    agent = File.expand_path("~/Library/LaunchAgents/md.gov.stisc.MoldSign.plist")
-    FileUtils.mkdir_p(File.dirname(agent))
-    File.write agent, <<~PLIST
+    write_file("Library/LaunchAgents/md.gov.stisc.MoldSign.plist", <<~PLIST, base: :home, overwrite: true)
       <?xml version="1.0" encoding="UTF-8"?>
       <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
       <plist version="1.0">
@@ -51,19 +40,24 @@ cask "moldsign" do
           <string>md.gov.stisc.MoldSign</string>
           <key>ProgramArguments</key>
           <array>
-            <string>#{moldsign}/MoldSign Server.app/Contents/MacOS/MoldSign_Server</string>
+            <string>{{appdir}}/STISC/MoldSign/MoldSign Server.app/Contents/MacOS/MoldSign_Server</string>
           </array>
           <key>RunAtLoad</key>
           <true/>
         </dict>
       </plist>
     PLIST
-    system_command "/bin/launchctl", args: ["load", "-w", agent]
+
+    # Start it now too, so the first signature request works without a re-login.
+    run "/bin/launchctl",
+        args:         ["load", "-w", "/Users/{{user}}/Library/LaunchAgents/md.gov.stisc.MoldSign.plist"],
+        must_succeed: false
   end
 
-  uninstall_preflight do
-    agent = File.expand_path("~/Library/LaunchAgents/md.gov.stisc.MoldSign.plist")
-    system_command "/bin/launchctl", args: ["unload", "-w", agent] if File.exist?(agent)
+  uninstall_preflight_steps do
+    run "/bin/launchctl",
+        args:         ["unload", "-w", "/Users/{{user}}/Library/LaunchAgents/md.gov.stisc.MoldSign.plist"],
+        must_succeed: false
   end
 
   uninstall launchctl: "md.gov.stisc.MoldSign",
@@ -71,15 +65,10 @@ cask "moldsign" do
               "md.stisc.MoldSign.Desktop",
               "md.stisc.MoldSign.Server",
             ],
-            delete:    [
-              "/Applications/MoldSign Desktop.app",
-              "/Applications/MoldSign Server.app",
-              "/Applications/STISC",
-              "~/Library/LaunchAgents/md.gov.stisc.MoldSign.plist",
-            ]
+            delete:    "~/Library/LaunchAgents/md.gov.stisc.MoldSign.plist"
 
   zap trash: [
-    "/Applications/STISC",
+    "#{appdir}/STISC",
     "~/Library/LaunchAgents/md.gov.stisc.MoldSign.plist",
   ]
 
@@ -88,8 +77,10 @@ cask "moldsign" do
       * On Apple Silicon it runs under Rosetta 2 — install it with
           softwareupdate --install-rosetta --agree-to-license
       * A background service (MoldSign Server) is started now and at every login
-        via ~/Library/LaunchAgents/md.gov.stisc.MoldSign.plist
-      * Launch the UI from "MoldSign Desktop" in /Applications
-        (a symlink into /Applications/STISC/MoldSign)
+        via ~/Library/LaunchAgents/md.gov.stisc.MoldSign.plist . If it did not
+        start, run:
+          launchctl load -w ~/Library/LaunchAgents/md.gov.stisc.MoldSign.plist
+      * The apps live in /Applications/STISC/MoldSign/ — launch "MoldSign Desktop"
+        from there or via Spotlight.
   EOS
 end

@@ -26,13 +26,15 @@ What the cask does, mirroring the vendor's GUI installer without running it:
 
 | Step | Location |
 | --- | --- |
-| Unpacks the `STISC/MoldSign` payload from the DMG | `/Applications/STISC` |
+| Installs the `STISC/MoldSign` payload from the DMG as an app suite | `/Applications/STISC/MoldSign/` |
 | Strips quarantine (`xattr -rc`) — the bundle is unsigned | `/Applications/STISC` |
-| Symlinks the two apps for Spotlight/Launchpad | `/Applications/MoldSign Desktop.app`, `/Applications/MoldSign Server.app` |
-| Installs a login LaunchAgent for the background server | `~/Library/LaunchAgents/md.gov.stisc.MoldSign.plist` |
+| Writes and loads a login LaunchAgent for the background server | `~/Library/LaunchAgents/md.gov.stisc.MoldSign.plist` |
+
+Launch the UI from `MoldSign Desktop.app` under `/Applications/STISC/MoldSign/`
+(or via Spotlight).
 
 `brew uninstall --cask moldsign` unloads the agent, quits both apps, and removes
-all of the above. Add `--zap` to also clear leftover data under
+the suite and the LaunchAgent. Add `--zap` to also clear leftover data under
 `/Applications/STISC`.
 
 ## Notes
