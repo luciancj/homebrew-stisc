@@ -4,8 +4,7 @@ cask "moldsign" do
 
   # TODO: replace with the real public download URL for this exact version.
   # The DMG this cask was built from is MoldSign_Install.dmg (v2.4.12), published by STISC.
-  url "https://msign.gov.md/downloads/MoldSign_Install_#{version}.dmg",
-      verified: "msign.gov.md/"
+  url "https://msign.gov.md/downloads/MoldSign_Install_#{version}.dmg"
   name "MoldSign Desktop Suite"
   desc "Digital-signature client for Moldova's MSign platform (STISC)"
   homepage "https://msign.gov.md/"
