@@ -30,7 +30,10 @@ cask "moldsign" do
     # command; without it Gatekeeper blocks the bundled JRE and native libraries.
     run "/usr/bin/xattr", args: ["-rc", "{{appdir}}/STISC"]
 
-    # LaunchAgent that starts the background Server at login (installed by the vendor).
+    # LaunchAgent that starts the background Server (the vendor installs the same).
+    # We only write it here — RunAtLoad starts it at the next login. Homebrew runs
+    # install steps inside a sandbox with no launchd bootstrap access, so loading
+    # it now from here is not possible; `caveats` gives the one-line manual start.
     write_file("Library/LaunchAgents/md.gov.stisc.MoldSign.plist", <<~PLIST, base: :home, overwrite: true)
       <?xml version="1.0" encoding="UTF-8"?>
       <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -47,17 +50,6 @@ cask "moldsign" do
         </dict>
       </plist>
     PLIST
-
-    # Start it now too, so the first signature request works without a re-login.
-    run "/bin/launchctl",
-        args:         ["load", "-w", "/Users/{{user}}/Library/LaunchAgents/md.gov.stisc.MoldSign.plist"],
-        must_succeed: false
-  end
-
-  uninstall_preflight_steps do
-    run "/bin/launchctl",
-        args:         ["unload", "-w", "/Users/{{user}}/Library/LaunchAgents/md.gov.stisc.MoldSign.plist"],
-        must_succeed: false
   end
 
   uninstall launchctl: "md.gov.stisc.MoldSign",
@@ -76,10 +68,12 @@ cask "moldsign" do
     MoldSign ships as an unsigned, x86_64-only bundle:
       * On Apple Silicon it runs under Rosetta 2 — install it with
           softwareupdate --install-rosetta --agree-to-license
-      * A background service (MoldSign Server) is started now and at every login
-        via ~/Library/LaunchAgents/md.gov.stisc.MoldSign.plist . If it did not
-        start, run:
-          launchctl load -w ~/Library/LaunchAgents/md.gov.stisc.MoldSign.plist
+      * A background service (MoldSign Server) runs at every login via
+        ~/Library/LaunchAgents/md.gov.stisc.MoldSign.plist . To start it now
+        without logging out, run (the `enable` clears the disabled override that
+        a prior `brew uninstall` leaves behind; harmless otherwise):
+          launchctl enable gui/$(id -u)/md.gov.stisc.MoldSign
+          launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/md.gov.stisc.MoldSign.plist
       * The apps live in /Applications/STISC/MoldSign/ — launch "MoldSign Desktop"
         from there or via Spotlight.
   EOS
