@@ -2,16 +2,17 @@ cask "moldsign" do
   version "2.4.12"
   sha256 "28bb7f07f7f7ca430f5ef3d8870047e8c83c667e737eac1d8d3e26cf95069e1c"
 
-  # TODO: replace with the real public download URL for this exact version.
-  # The DMG this cask was built from is MoldSign_Install.dmg (v2.4.12), published by STISC.
-  url "https://msign.gov.md/downloads/MoldSign_Install_#{version}.dmg"
+  # Rolling "latest" URL — the filename carries no version, so STISC serves whatever
+  # the current release is here. `version`/`sha256` pin this cask to 2.4.12; bump both
+  # by hand when the upstream file changes (installs fail the checksum until then).
+  url "https://semnatura.md/instalare/Dist/MoldSign_Install.dmg"
   name "MoldSign Desktop Suite"
   desc "Digital-signature client for Moldova's MSign platform (STISC)"
   homepage "https://msign.gov.md/"
 
-  # No upstream version index is known; bump `version`/`sha256` by hand on new releases.
+  # No versioned download or release index is published upstream.
   livecheck do
-    skip "No versioned upstream download index"
+    skip "Rolling single-file download with no upstream version index"
   end
 
   auto_updates false
